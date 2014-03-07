@@ -1,1 +1,1 @@
-from namelist import read_namelist_file, Namelist
+from namelist import read_namelist_file, Namelist, AttributeMapper

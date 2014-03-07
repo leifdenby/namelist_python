@@ -12,6 +12,34 @@ class NoSingleValueFoundException(Exception):
 def read_namelist_file(filename):
     return Namelist(open(filename, 'r').read())
 
+
+class AttributeMapper():
+    """
+    Simple mapper to access dictionary items as attributes
+    """
+
+    def __init__(self, obj):
+        self.__dict__['data'] = obj
+
+    def __getattr__(self, attr):
+        if attr in self.data:
+            found_attr = self.data[attr]
+            if isinstance(found_attr, dict):
+                return AttributeMapper(found_attr)
+            else:
+                return found_attr
+        else:
+            raise AttributeError
+
+    def __setattr__(self, attr, value):
+        if attr in self.data:
+            self.data[attr] = value
+        else:
+            raise NotImplementedError
+
+    def __dir__(self):
+        return self.data.keys()
+
 class Namelist():
     """
     Parses namelist files in Fortran 90 format, recognised groups are
@@ -24,7 +52,7 @@ class Namelist():
         group_re = re.compile(r'&([^&/]+)/', re.DOTALL)  # allow blocks to span multiple lines
         array_re = re.compile(r'(\w+)\((\d+)\)')
         string_re = re.compile(r"\'\s*\w[^']*\'")
-        self.complex_re = re.compile(r'^\((\d+.?\d*),(\d+.?\d*)\)$')
+        self._complex_re = re.compile(r'^\((\d+.?\d*),(\d+.?\d*)\)$')
 
         # remove all comments, since they may have forward-slashes
         # TODO: store position of comments so that they can be re-inserted when
@@ -112,7 +140,7 @@ class Namelist():
                 parsed_value = float(variable_value)
             except ValueError:
                 # check for complex number
-                complex_values = re.findall(self.complex_re, variable_value)
+                complex_values = re.findall(self._complex_re, variable_value)
                 if len(complex_values) == 1:
                     a, b = complex_values[0]
                     parsed_value = complex(float(a),float(b))
@@ -179,6 +207,10 @@ class Namelist():
             return "(%s,%s)" % (self._format_value(value.real), self._format_value(value.imag))
         else:
             raise Exception("Variable type not understood: %s" % type(value))
+
+    @property
+    def data(self):
+        return AttributeMapper(self.groups)
 
 class ParsingTests(unittest.TestCase):
     def test_single_value(self):
@@ -374,7 +406,6 @@ class ParsingTests(unittest.TestCase):
         namelist = Namelist(input_str)
 
         self.assertEqual(dict(namelist.groups), expected_output)
-
 
 class ParsingTests(unittest.TestCase):
     def test_single_value(self):
