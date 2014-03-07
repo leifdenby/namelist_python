@@ -172,11 +172,7 @@ class Namelist():
         elif isinstance(value, int):
             return "%d" % value
         elif isinstance(value, float):
-            try:
-                int(value)  # floats with integer value actually get formatted without period with %g
-                return "%g." % value
-            except ValueError:
-                return "%g" % value
+            return "%f" % value
         elif isinstance(value, str):
             return "'%s'" % value
         elif isinstance(value, complex):
