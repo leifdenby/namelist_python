@@ -149,7 +149,42 @@ class Namelist():
 
                         group[variable_name] = variable_list
 
-class MultilineTests(unittest.TestCase):
+    def dump(self, array_inline=True):
+        lines = []
+        for group_name, group_variables in self.groups.items():
+            lines.append("&%s" % group_name)
+            for variable_name, variable_value in group_variables.items():
+                if isinstance(variable_value, list):
+                    if array_inline:
+                        lines.append("%s= %s" % (variable_name, " ".join([self._format_value(v) for v in variable_value])))
+                    else:
+                        for n, v in enumerate(variable_value):
+                            lines.append("%s(%d)=%s" % (variable_name, n+1, self._format_value(v)))
+                else:
+                    lines.append("%s=%s" % (variable_name, self._format_value(variable_value)))
+            lines.append("/")
+
+        return "\n".join(lines)
+
+    def _format_value(self, value):
+        if isinstance(value, bool):
+            return value and '.true.' or '.false.'
+        elif isinstance(value, int):
+            return "%d" % value
+        elif isinstance(value, float):
+            try:
+                int(value)  # floats with integer value actually get formatted without period with %g
+                return "%g." % value
+            except ValueError:
+                return "%g" % value
+        elif isinstance(value, str):
+            return "'%s'" % value
+        elif isinstance(value, complex):
+            return "(%s,%s)" % (self._format_value(value.real), self._format_value(value.imag))
+        else:
+            raise Exception("Variable type not understood: %s" % type(value))
+
+class ParsingTests(unittest.TestCase):
     def test_single_value(self):
         input_str = """
         &CCFMSIM_SETUP
@@ -343,6 +378,55 @@ class MultilineTests(unittest.TestCase):
         namelist = Namelist(input_str)
 
         self.assertEqual(dict(namelist.groups), expected_output)
+
+
+class ParsingTests(unittest.TestCase):
+    def test_single_value(self):
+        input_str = """&CCFMSIM_SETUP
+CCFMrad=800.
+/"""
+        namelist = Namelist(input_str)
+
+        self.assertEqual(namelist.dump(), input_str)
+
+    def test_multigroup(self):
+        input_str = """&CCFMSIM_SETUP
+CCFMrad=800.
+/
+&GROUP2
+R=500.
+/"""
+        namelist = Namelist(input_str)
+
+        self.assertEqual(namelist.dump(), input_str)
+
+
+    def test_array(self):
+        input_str = """&CCFMSIM_SETUP
+var_trac_picture(1)='watcnew'
+var_trac_picture(2)='watpnew'
+var_trac_picture(3)='icecnew'
+var_trac_picture(4)='granew'
+des_trac_picture(1)='cloud_water'
+des_trac_picture(2)='rain'
+des_trac_picture(3)='cloud_ice'
+des_trac_picture(4)='graupel'
+/"""
+        namelist = Namelist(input_str)
+
+        self.assertEqual(namelist.dump(array_inline=False), input_str)
+
+    def test_inline_array(self):
+        input_str = """&AADATA
+AACOMPLEX= (3.,4.) (3.,4.) (5.,6.) (7.,7.)
+/"""
+
+        namelist = Namelist(input_str)
+
+        print input_str
+        print namelist.dump()
+
+        self.assertEqual(namelist.dump(), input_str)
 
 if __name__=='__main__':
     unittest.main()
