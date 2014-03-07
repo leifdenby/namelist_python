@@ -6,14 +6,32 @@ except ImportError:
 
 import re
 
+def read_namelist_file(filename):
+    return Namelist(open(filename, 'r').read())
+
 class Namelist():
+    """
+    Parses namelist files in Fortran 90 format, recognised groups are
+    available through 'groups' attribute.
+    """
+
     def __init__(self, input_str):
         self.groups = OrderedDict()
 
         group_re = re.compile(r'&([^&/]+)/', re.DOTALL)
         array_re = re.compile(r'(\w+)\((\d+)\)')
 
-        group_blocks = re.findall(group_re, input_str)
+        # remove all comments, since they may have forward-slashes
+        # TODO: store position of comments so that they can be re-inserted when
+        # we eventually save
+        filtered_lines = []
+        for line in input_str.split('\n'):
+            if line.strip().startswith('!'):
+                continue
+            else:
+                filtered_lines.append(line)
+
+        group_blocks = re.findall(group_re, "\n".join(filtered_lines))
 
         for group_block in group_blocks:
             block_lines = group_block.split('\n')
@@ -80,7 +98,6 @@ class Namelist():
                                 variable_list[i] = value
 
                         group[variable_name] = variable_list
-
 
 class MultilineTests(unittest.TestCase):
     def test_single_value(self):
@@ -201,6 +218,25 @@ class MultilineTests(unittest.TestCase):
         }
 
         self.assertEqual(dict(namelist.groups), expected_output)
+
+    def test_comment_with_forwardslash(self):
+        input_str = """
+        ! Interesting comment at the start
+        &CCFMSIM_SETUP
+        CCFMrad=800.0
+        ! And a comment some where in the middle/halfway !
+        var2=40
+        /
+        &GROUP2
+        R=500.0
+        /
+        """
+        namelist = Namelist(input_str)
+
+        expected_output = {'CCFMSIM_SETUP': { 'CCFMrad': 800., 'var2': 40 },
+                           'GROUP2': { 'R': 500. }}
+
+        self.assertEqual(namelist.groups, expected_output)
 
 
 if __name__=='__main__':
