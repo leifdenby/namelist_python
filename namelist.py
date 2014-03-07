@@ -6,6 +6,9 @@ except ImportError:
 
 import re
 
+class NoSingleValueFoundException(Exception):
+    pass
+
 def read_namelist_file(filename):
     return Namelist(open(filename, 'r').read())
 
@@ -18,8 +21,10 @@ class Namelist():
     def __init__(self, input_str):
         self.groups = OrderedDict()
 
-        group_re = re.compile(r'&([^&/]+)/', re.DOTALL)
+        group_re = re.compile(r'&([^&/]+)/', re.DOTALL)  # allow blocks to span multiple lines
         array_re = re.compile(r'(\w+)\((\d+)\)')
+        string_re = re.compile(r"\'\s*\w[^']*\'")
+        self.complex_re = re.compile(r'^\((\d+.?\d*),(\d+.?\d*)\)$')
 
         # remove all comments, since they may have forward-slashes
         # TODO: store position of comments so that they can be re-inserted when
@@ -46,6 +51,10 @@ class Namelist():
                 if line.startswith('!'):
                     continue
 
+                # commas at the end of lines seem to be optional
+                if line.endswith(','):
+                    line = line[:-1]
+
                 k, v = line.split('=')
                 variable_name = k.strip()
                 variable_value = v.strip()
@@ -58,27 +67,68 @@ class Namelist():
                     variable_index = int(variable_index)-1 # python indexing starts at 0
 
                 try:
-                    parsed_value = int(variable_value)
-                except ValueError:
-                    try:
-                        parsed_value = float(variable_value)
-                    except ValueError:
-                        parsed_value = variable_value.replace("'","")
-                        if parsed_value.lower() == '.true.':
-                            parsed_value = True
-                        elif parsed_value.lower() == '.false.':
-                            parsed_value = False
+                    parsed_value = self._parse_value(variable_value)
 
-                if variable_index is None:
-                    group[variable_name] = parsed_value
-                else:
-                    if not variable_name in group:
-                        group[variable_name] = {'_is_list': True}
-                    group[variable_name][variable_index] = parsed_value
+                    if variable_index is None:
+                        group[variable_name] = parsed_value
+                    else:
+                        if not variable_name in group:
+                            group[variable_name] = {'_is_list': True}
+                        group[variable_name][variable_index] = parsed_value
+
+                except NoSingleValueFoundException as e:
+                    # see we have several values inlined
+                    if variable_value.count("'") in [0, 2]:
+                        variable_arr_entries = variable_value.split()
+                    else:
+                        # we need to be more careful with lines with escaped
+                        # strings, since they might contained spaces
+                        matches = re.findall(string_re, variable_value)
+                        variable_arr_entries = [s.strip() for s in matches]
+
+
+                    for variable_index, inline_value in enumerate(variable_arr_entries):
+                        parsed_value = self._parse_value(inline_value)
+
+                        if variable_index is None:
+                            group[variable_name] = parsed_value
+                        else:
+                            if not variable_name in group:
+                                group[variable_name] = {'_is_list': True}
+                            group[variable_name][variable_index] = parsed_value
 
             self.groups[group_name] = group
 
             self._check_lists()
+
+    def _parse_value(self, variable_value):
+        """
+        Tries to parse a single value, raises an exception if no single value is matched
+        """
+        try:
+            parsed_value = int(variable_value)
+        except ValueError:
+            try:
+                parsed_value = float(variable_value)
+            except ValueError:
+                # check for complex number
+                complex_values = re.findall(self.complex_re, variable_value)
+                if len(complex_values) == 1:
+                    a, b = complex_values[0]
+                    parsed_value = complex(float(a),float(b))
+                elif variable_value in ['.true.', 'T']:
+                    # check for a boolean
+                    parsed_value = True
+                elif variable_value in ['.false.', 'F']:
+                    parsed_value = False
+                else:
+                    # see if we have an escaped string
+                    if variable_value.startswith("'") and variable_value.endswith("'") and variable_value.count("'") == 2:
+                        parsed_value = variable_value[1:-1]
+                    else:
+                        raise NoSingleValueFoundException(variable_value)
+
+        return parsed_value
 
     def _check_lists(self):
         for group in self.groups.values():
@@ -238,6 +288,61 @@ class MultilineTests(unittest.TestCase):
 
         self.assertEqual(namelist.groups, expected_output)
 
+    def test_inline_array(self):
+        input_str = """
+        ! can have blank lines and comments in the namelist input file
+        ! place these comments between NAMELISTs
+
+        !
+        ! not every compiler supports comments within the namelist
+        !   in particular vastf90/g77 does not
+        !
+        ! some will skip NAMELISTs not directly referenced in read
+        !&BOGUS rko=1 /
+        !
+        &TTDATA
+        TTREAL =  1.,
+        TTINTEGER = 2,
+        TTCOMPLEX = (3.,4.),
+        TTCHAR = 'namelist',
+        TTBOOL = T/
+        &AADATA
+        AAREAL =  1.  1.  2.  3.,
+        AAINTEGER = 2 2 3 4,
+        AACOMPLEX = (3.,4.) (3.,4.) (5.,6.) (7.,7.),
+        AACHAR = 'namelist' 'namelist' 'array' ' the lot',
+        AABOOL = T T F F/
+        &XXDATA
+        XXREAL =  1.,
+        XXINTEGER = 2,
+        XXCOMPLEX = (3.,4.)/! can have blank lines and comments in the namelist input file
+        """
+
+        expected_output = {
+            'TTDATA': {
+                'TTREAL': 1.,
+                'TTINTEGER': 2,
+                'TTCOMPLEX': 3. + 4.j,
+                'TTCHAR': 'namelist',
+                'TTBOOL': True,
+            },
+            'AADATA': {
+                'AAREAL': [1., 1., 2., 3.,],
+                'AAINTEGER': [2, 2, 3, 4],
+                'AACOMPLEX': [3.+4.j, 3.+4.j, 5.+6.j, 7.+7.j],
+                'AACHAR': ['namelist', 'namelist', 'array', ' the lot'],
+                'AABOOL': [True, True, False, False],
+            },
+            'XXDATA': {
+                'XXREAL': 1.,
+                'XXINTEGER': 2.,
+                'XXCOMPLEX': 3.+4.j,
+            },
+        }
+
+        namelist = Namelist(input_str)
+
+        self.assertEqual(dict(namelist.groups), expected_output)
 
 if __name__=='__main__':
     unittest.main()
