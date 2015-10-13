@@ -66,11 +66,14 @@ class Namelist():
 
         group_blocks = re.findall(group_re, "\n".join(filtered_lines))
 
+        group_cnt = {}
+
         for group_block in group_blocks:
             block_lines = group_block.split('\n')
             group_name = block_lines.pop(0).strip()
 
             group = {}
+
 
             for line in block_lines:
                 line = line.strip()
@@ -125,6 +128,14 @@ class Namelist():
                                 group[variable_name] = {'_is_list': True}
                             group[variable_name][variable_index] = parsed_value
 
+            if group_name in self.groups.keys():
+                
+                if not group_name in group_cnt.keys():
+                    group_cnt[group_name] = 0
+                else:
+                    group_cnt[group_name] += 1
+                group_name = group_name + str(group_cnt[group_name])
+
             self.groups[group_name] = group
 
             self._check_lists()
@@ -152,6 +163,8 @@ class Namelist():
                 else:
                     # see if we have an escaped string
                     if variable_value.startswith("'") and variable_value.endswith("'") and variable_value.count("'") == 2:
+                        parsed_value = variable_value[1:-1]
+                    if variable_value.startswith('"') and variable_value.endswith('"') and variable_value.count('"') == 2:
                         parsed_value = variable_value[1:-1]
                     else:
                         raise NoSingleValueFoundException(variable_value)
