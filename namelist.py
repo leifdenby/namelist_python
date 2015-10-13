@@ -440,6 +440,32 @@ R=500.
 
         self.assertEqual(namelist.dump(), input_str)
 
+    def test_commongroup_names(self):
+        re_common = re.compile(r'RELEASE')
+        input_str = """&REL_CTRL
+ NSPEC=        1,
+ SPECNUM_REL= 100,   
+ /
+&RELEASE
+ IDATE1=  20100101,
+ ITIME1=  000000,
+ IDATE2=  20100201,
+ ITIME2=  000000,
+ /
+&RELEASE
+ IDATE1=  20100101,
+ ITIME1=  000000,
+ IDATE2=  20100201,
+ ITIME2=  000000,
+/"""
+        namelist = Namelist(input_str)
+        common1 = re.findall(re_common, input_str)
+        print(common1)
+        common2 = re.findall(re_common, namelist.dump(array_inline=False))
+        print(common2)
+
+        self.assertEqual(common1, common2)
+
 
     def test_array(self):
         input_str = """&CCFMSIM_SETUP
