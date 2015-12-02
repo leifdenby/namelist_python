@@ -153,7 +153,7 @@ class Namelist():
                     # see if we have an escaped string
                     if variable_value.startswith("'") and variable_value.endswith("'") and variable_value.count("'") == 2:
                         parsed_value = variable_value[1:-1]
-                    if variable_value.startswith('"') and variable_value.endswith('"') and variable_value.count('"') == 2:
+                    elif variable_value.startswith('"') and variable_value.endswith('"') and variable_value.count('"') == 2:
                         parsed_value = variable_value[1:-1]
                     else:
                         raise NoSingleValueFoundException(variable_value)
