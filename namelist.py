@@ -1,5 +1,4 @@
 import unittest
-import sys
 try:
     from collections import OrderedDict
 except ImportError:
@@ -71,7 +70,7 @@ class Namelist():
             block_lines = group_block.split('\n')
             group_name = block_lines.pop(0).strip()
 
-            group = OrderedDict()
+            group = {}
 
             for line in block_lines:
                 line = line.strip()
@@ -108,13 +107,7 @@ class Namelist():
                 except NoSingleValueFoundException as e:
                     # see we have several values inlined
                     if variable_value.count("'") in [0, 2]:
-                        if variable_value.count("(") != 0:  # if list of complex values
-                            variable_arr_entries = variable_value.split()
-                        else:
-                            # replacing ',' makes comma-separated arrays possible,
-                            # see unit test test_inline_array_comma
-                            # this fails if an array of complex numbers is comma-separated
-                            variable_arr_entries = variable_value.replace(',', ' ').split()
+                        variable_arr_entries = variable_value.split()
                     else:
                         # we need to be more careful with lines with escaped
                         # strings, since they might contained spaces
@@ -193,45 +186,29 @@ class Namelist():
             for variable_name, variable_value in group_variables.items():
                 if isinstance(variable_value, list):
                     if array_inline:
-                        lines.append("  %s= %s" % (variable_name, " ".join([self._format_value(v) for v in variable_value])))
+                        lines.append("  %s = %s" % (variable_name, " ".join([self._format_value(v) for v in variable_value])))
                     else:
                         for n, v in enumerate(variable_value):
-                            lines.append("  %s(%d)=%s" % (variable_name, n+1, self._format_value(v)))
+                            lines.append("  %s(%d) = %s" % (variable_name, n+1, self._format_value(v)))
                 else:
-                    lines.append("  %s=%s" % (variable_name, self._format_value(variable_value)))
+                    lines.append("  %s = %s" % (variable_name, self._format_value(variable_value)))
             lines.append("/")
 
         return "\n".join(lines)
 
     def _format_value(self, value):
-        if sys.version_info < (3,0,0):  # if python2.x
-            if isinstance(value, bool):
-                return value and '.true.' or '.false.'
-            elif isinstance(value, int):
-                return "%d" % value
-            elif isinstance(value, float):
-                return "%f" % value
-            elif isinstance(value, str):
-                return "'%s'" % value
-            elif isinstance(value, unicode):  # needed if unicode literals are used
-                return "'%s'" % value
-            elif isinstance(value, complex):
-                return "(%s,%s)" % (self._format_value(value.real), self._format_value(value.imag))
-            else:
-                raise Exception("Variable type not understood: %s" % type(value))
-        else:  # no special unicode type in python3 anymore
-            if isinstance(value, bool):
-                return value and '.true.' or '.false.'
-            elif isinstance(value, int):
-                return "%d" % value
-            elif isinstance(value, float):
-                return "%f" % value
-            elif isinstance(value, str):
-                return "'%s'" % value
-            elif isinstance(value, complex):
-                return "(%s,%s)" % (self._format_value(value.real), self._format_value(value.imag))
-            else:
-                raise Exception("Variable type not understood: %s" % type(value))
+        if isinstance(value, bool):
+            return value and '.true.' or '.false.'
+        elif isinstance(value, int):
+            return "%d" % value
+        elif isinstance(value, float):
+            return "%f" % value
+        elif isinstance(value, str):
+            return "'%s'" % value
+        elif isinstance(value, complex):
+            return "(%s,%s)" % (self._format_value(value.real), self._format_value(value.imag))
+        else:
+            raise Exception("Variable type not understood: %s" % type(value))
 
     @property
     def data(self):
@@ -432,40 +409,28 @@ class ParsingTests(unittest.TestCase):
 
         self.assertEqual(dict(namelist.groups), expected_output)
 
-
-    def test_inline_array_comma(self):
-        input_str = """
-                    &foo
-                    bar = 7.2, 4.3, 3.14,
-                    /
-                    """
-        expected_output = {'foo': {'bar':[7.2, 4.3, 3.14]}}
-        namelist = Namelist(input_str)
-
-        self.assertEqual(dict(namelist.groups), expected_output)
-
-
-    def test_dump_single_value(self):
+class ParsingTests(unittest.TestCase):
+    def test_single_value(self):
         input_str = """&CCFMSIM_SETUP
-  CCFMrad=800.000000
+  CCFMrad=800.
 /"""
         namelist = Namelist(input_str)
 
         self.assertEqual(namelist.dump(), input_str)
 
-    def test_dump_multigroup(self):
+    def test_multigroup(self):
         input_str = """&CCFMSIM_SETUP
-  CCFMrad=800.000000
+  CCFMrad=800.
 /
 &GROUP2
-  R=500.000000
+  R=500.
 /"""
         namelist = Namelist(input_str)
 
         self.assertEqual(namelist.dump(), input_str)
 
 
-    def test_dump_array(self):
+    def test_array(self):
         input_str = """&CCFMSIM_SETUP
   var_trac_picture(1)='watcnew'
   var_trac_picture(2)='watpnew'
@@ -480,12 +445,15 @@ class ParsingTests(unittest.TestCase):
 
         self.assertEqual(namelist.dump(array_inline=False), input_str)
 
-    def test_dump_inline_array(self):
+    def test_inline_array(self):
         input_str = """&AADATA
-  AACOMPLEX= (3.000000,4.000000) (3.000000,4.000000) (5.000000,6.000000) (7.000000,7.000000)
+  AACOMPLEX= (3.,4.) (3.,4.) (5.,6.) (7.,7.)
 /"""
 
         namelist = Namelist(input_str)
+
+        print input_str
+        print namelist.dump()
 
         self.assertEqual(namelist.dump(), input_str)
 
