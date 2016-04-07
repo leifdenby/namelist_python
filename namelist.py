@@ -1,4 +1,5 @@
 import unittest
+import sys
 try:
     from collections import OrderedDict
 except ImportError:
@@ -107,7 +108,13 @@ class Namelist():
                 except NoSingleValueFoundException as e:
                     # see we have several values inlined
                     if variable_value.count("'") in [0, 2]:
-                        variable_arr_entries = variable_value.split()
+                        if variable_value.count("(") != 0:  # if list of complex values
+                            variable_arr_entries = variable_value.split()
+                        else:
+                            # replacing ',' makes comma-separated arrays possible,
+                            # see unit test test_inline_array_comma
+                            # this fails if an array of complex numbers is comma-separated
+                            variable_arr_entries = variable_value.replace(',', ' ').split()
                     else:
                         # we need to be more careful with lines with escaped
                         # strings, since they might contained spaces
@@ -197,18 +204,34 @@ class Namelist():
         return "\n".join(lines)
 
     def _format_value(self, value):
-        if isinstance(value, bool):
-            return value and '.true.' or '.false.'
-        elif isinstance(value, int):
-            return "%d" % value
-        elif isinstance(value, float):
-            return "%f" % value
-        elif isinstance(value, str):
-            return "'%s'" % value
-        elif isinstance(value, complex):
-            return "(%s,%s)" % (self._format_value(value.real), self._format_value(value.imag))
-        else:
-            raise Exception("Variable type not understood: %s" % type(value))
+        if sys.version_info < (3,0,0):  # if python2.x
+            if isinstance(value, bool):
+                return value and '.true.' or '.false.'
+            elif isinstance(value, int):
+                return "%d" % value
+            elif isinstance(value, float):
+                return "%f" % value
+            elif isinstance(value, str):
+                return "'%s'" % value
+            elif isinstance(value, unicode):  # needed if unicode literals are used
+                return "'%s'" % value
+            elif isinstance(value, complex):
+                return "(%s,%s)" % (self._format_value(value.real), self._format_value(value.imag))
+            else:
+                raise Exception("Variable type not understood: %s" % type(value))
+        else:  # no special unicode type in python3 anymore
+            if isinstance(value, bool):
+                return value and '.true.' or '.false.'
+            elif isinstance(value, int):
+                return "%d" % value
+            elif isinstance(value, float):
+                return "%f" % value
+            elif isinstance(value, str):
+                return "'%s'" % value
+            elif isinstance(value, complex):
+                return "(%s,%s)" % (self._format_value(value.real), self._format_value(value.imag))
+            else:
+                raise Exception("Variable type not understood: %s" % type(value))
 
     @property
     def data(self):
@@ -409,28 +432,40 @@ class ParsingTests(unittest.TestCase):
 
         self.assertEqual(dict(namelist.groups), expected_output)
 
-class ParsingTests(unittest.TestCase):
-    def test_single_value(self):
+
+    def test_inline_array_comma(self):
+        input_str = """
+                    &foo
+                    bar = 7.2, 4.3, 3.14,
+                    /
+                    """
+        expected_output = {'foo': {'bar':[7.2, 4.3, 3.14]}}
+        namelist = Namelist(input_str)
+
+        self.assertEqual(dict(namelist.groups), expected_output)
+
+
+    def test_dump_single_value(self):
         input_str = """&CCFMSIM_SETUP
-CCFMrad=800.
+CCFMrad=800.000000
 /"""
         namelist = Namelist(input_str)
 
         self.assertEqual(namelist.dump(), input_str)
 
-    def test_multigroup(self):
+    def test_dump_multigroup(self):
         input_str = """&CCFMSIM_SETUP
-CCFMrad=800.
+CCFMrad=800.000000
 /
 &GROUP2
-R=500.
+R=500.000000
 /"""
         namelist = Namelist(input_str)
 
         self.assertEqual(namelist.dump(), input_str)
 
 
-    def test_array(self):
+    def test_dump_array(self):
         input_str = """&CCFMSIM_SETUP
 var_trac_picture(1)='watcnew'
 var_trac_picture(2)='watpnew'
@@ -445,15 +480,12 @@ des_trac_picture(4)='graupel'
 
         self.assertEqual(namelist.dump(array_inline=False), input_str)
 
-    def test_inline_array(self):
+    def test_dump_inline_array(self):
         input_str = """&AADATA
-AACOMPLEX= (3.,4.) (3.,4.) (5.,6.) (7.,7.)
+AACOMPLEX= (3.000000,4.000000) (3.000000,4.000000) (5.000000,6.000000) (7.000000,7.000000)
 /"""
 
         namelist = Namelist(input_str)
-
-        print input_str
-        print namelist.dump()
 
         self.assertEqual(namelist.dump(), input_str)
 
