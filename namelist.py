@@ -71,7 +71,7 @@ class Namelist():
             block_lines = group_block.split('\n')
             group_name = block_lines.pop(0).strip()
 
-            group = {}
+            group = OrderedDict()
 
             for line in block_lines:
                 line = line.strip()
@@ -193,12 +193,12 @@ class Namelist():
             for variable_name, variable_value in group_variables.items():
                 if isinstance(variable_value, list):
                     if array_inline:
-                        lines.append("%s= %s" % (variable_name, " ".join([self._format_value(v) for v in variable_value])))
+                        lines.append("  %s= %s" % (variable_name, " ".join([self._format_value(v) for v in variable_value])))
                     else:
                         for n, v in enumerate(variable_value):
-                            lines.append("%s(%d)=%s" % (variable_name, n+1, self._format_value(v)))
+                            lines.append("  %s(%d)=%s" % (variable_name, n+1, self._format_value(v)))
                 else:
-                    lines.append("%s=%s" % (variable_name, self._format_value(variable_value)))
+                    lines.append("  %s=%s" % (variable_name, self._format_value(variable_value)))
             lines.append("/")
 
         return "\n".join(lines)
@@ -447,7 +447,7 @@ class ParsingTests(unittest.TestCase):
 
     def test_dump_single_value(self):
         input_str = """&CCFMSIM_SETUP
-CCFMrad=800.000000
+  CCFMrad=800.000000
 /"""
         namelist = Namelist(input_str)
 
@@ -455,10 +455,10 @@ CCFMrad=800.000000
 
     def test_dump_multigroup(self):
         input_str = """&CCFMSIM_SETUP
-CCFMrad=800.000000
+  CCFMrad=800.000000
 /
 &GROUP2
-R=500.000000
+  R=500.000000
 /"""
         namelist = Namelist(input_str)
 
@@ -467,14 +467,14 @@ R=500.000000
 
     def test_dump_array(self):
         input_str = """&CCFMSIM_SETUP
-var_trac_picture(1)='watcnew'
-var_trac_picture(2)='watpnew'
-var_trac_picture(3)='icecnew'
-var_trac_picture(4)='granew'
-des_trac_picture(1)='cloud_water'
-des_trac_picture(2)='rain'
-des_trac_picture(3)='cloud_ice'
-des_trac_picture(4)='graupel'
+  var_trac_picture(1)='watcnew'
+  var_trac_picture(2)='watpnew'
+  var_trac_picture(3)='icecnew'
+  var_trac_picture(4)='granew'
+  des_trac_picture(1)='cloud_water'
+  des_trac_picture(2)='rain'
+  des_trac_picture(3)='cloud_ice'
+  des_trac_picture(4)='graupel'
 /"""
         namelist = Namelist(input_str)
 
@@ -482,7 +482,7 @@ des_trac_picture(4)='graupel'
 
     def test_dump_inline_array(self):
         input_str = """&AADATA
-AACOMPLEX= (3.000000,4.000000) (3.000000,4.000000) (5.000000,6.000000) (7.000000,7.000000)
+  AACOMPLEX= (3.000000,4.000000) (3.000000,4.000000) (5.000000,6.000000) (7.000000,7.000000)
 /"""
 
         namelist = Namelist(input_str)
