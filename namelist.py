@@ -436,7 +436,7 @@ class ParsingTests(unittest.TestCase):
 
     def test_dump_single_value(self):
         input_str = """&CCFMSIM_SETUP
-  CCFMrad = 800.000000
+  CCFMrad = 800.
 /"""
         namelist = Namelist(input_str)
 
@@ -444,10 +444,10 @@ class ParsingTests(unittest.TestCase):
 
     def test_dump_multigroup(self):
         input_str = """&CCFMSIM_SETUP
-  CCFMrad = 800.000000
+  CCFMrad = 800.
 /
 &GROUP2
-  R = 500.000000
+  R = 500.
 /"""
         namelist = Namelist(input_str)
 
@@ -471,7 +471,7 @@ class ParsingTests(unittest.TestCase):
 
     def test_dump_inline_array(self):
         input_str = """&AADATA
-  AACOMPLEX = (3.000000,4.000000) (3.000000,4.000000) (5.000000,6.000000) (7.000000,7.000000)
+  AACOMPLEX = (3.,4.) (3.,4.) (5.,6.) (7.,7.)
 /"""
 
         namelist = Namelist(input_str)
