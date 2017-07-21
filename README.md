@@ -1,5 +1,8 @@
 # Fortran namelist files in Python
 
+[![Build
+Status](https://travis-ci.org/leifdenby/namelist_python.svg?branch=master)](https://travis-ci.org/leifdenby/namelist_python)
+
 Read in a namelist file:
 ```
 from namelist_python import read_namelist_file
