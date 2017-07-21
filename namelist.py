@@ -202,7 +202,9 @@ class Namelist():
         elif isinstance(value, int):
             return "%d" % value
         elif isinstance(value, float):
-            return "%f" % value
+            # ensure that we never use scientific notation, but remove excess zeroes
+            # https://stackoverflow.com/a/2440786
+            return ('%f' % value).rstrip('0')
         elif isinstance(value, str):
             return "'%s'" % value
         elif isinstance(value, complex):
@@ -451,9 +453,6 @@ AACOMPLEX= (3.,4.) (3.,4.) (5.,6.) (7.,7.)
 /"""
 
         namelist = Namelist(input_str)
-
-        print input_str
-        print namelist.dump()
 
         self.assertEqual(namelist.dump(), input_str)
 
