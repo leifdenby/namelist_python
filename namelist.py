@@ -50,7 +50,7 @@ class Namelist():
     def __init__(self, input_str):
         self.groups = OrderedDict()
 
-        group_re = re.compile(r'&([^&/]+)/', re.DOTALL)  # allow blocks to span multiple lines
+        group_re = re.compile(r'&([^&]+)/', re.DOTALL)  # allow blocks to span multiple lines
         array_re = re.compile(r'(\w+)\((\d+)\)')
         string_re = re.compile(r"\'\s*\w[^']*\'")
         self._complex_re = re.compile(r'^\((\d+.?\d*),(\d+.?\d*)\)$')
@@ -488,6 +488,13 @@ class ParsingTests(unittest.TestCase):
 
         self.assertEqual(common1, common2)
 
+    def test_dump_path(self):
+        input_str = """&settings
+  path = '/home/monkey/'
+/"""
+        namelist = Namelist(input_str)
+
+        self.assertEqual(namelist.dump(array_inline=False), input_str)
 
     def test_dump_array(self):
         input_str = """&CCFMSIM_SETUP
