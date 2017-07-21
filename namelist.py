@@ -67,11 +67,14 @@ class Namelist():
 
         group_blocks = re.findall(group_re, "\n".join(filtered_lines))
 
+        group_cnt = {}
+
         for group_block in group_blocks:
             block_lines = group_block.split('\n')
             group_name = block_lines.pop(0).strip()
 
             group = OrderedDict()
+
 
             for line in block_lines:
                 line = line.strip()
@@ -131,6 +134,14 @@ class Namelist():
                             if not variable_name in group:
                                 group[variable_name] = {'_is_list': True}
                             group[variable_name][variable_index] = parsed_value
+
+            if group_name in self.groups.keys():
+                
+                if not group_name in group_cnt.keys():
+                    group_cnt[group_name] = 0
+                else:
+                    group_cnt[group_name] += 1
+                group_name = group_name + str(group_cnt[group_name])
 
             self.groups[group_name] = group
 
@@ -452,6 +463,30 @@ class ParsingTests(unittest.TestCase):
         namelist = Namelist(input_str)
 
         self.assertEqual(namelist.dump(), input_str)
+
+    def test_commongroup_names(self):
+        re_common = re.compile(r'RELEASE')
+        input_str = """&REL_CTRL
+ NSPEC=        1,
+ SPECNUM_REL= 100,   
+ /
+&RELEASE
+ IDATE1=  20100101,
+ ITIME1=  000000,
+ IDATE2=  20100201,
+ ITIME2=  000000,
+ /
+&RELEASE
+ IDATE1=  20100101,
+ ITIME1=  000000,
+ IDATE2=  20100201,
+ ITIME2=  000000,
+/"""
+        namelist = Namelist(input_str)
+        common1 = re.findall(re_common, input_str)
+        common2 = re.findall(re_common, namelist.dump(array_inline=False))
+
+        self.assertEqual(common1, common2)
 
 
     def test_dump_array(self):
