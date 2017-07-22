@@ -1,8 +1,13 @@
-from distutils.core import setup
+from setuptools import setup
+
+with open('README.md') as readme_file:
+    readme = readme_file.read()
+
 setup(
   name = 'namelist_python',
+  ng_description=readme,
   packages = ['namelist_python'],
-  version = '0.1',
+  version = '0.1.1',
   description = 'Fortran namelist file parser in Python',
   author = 'Leif Denby',
   author_email = 'leifdenby@gmail.com',
