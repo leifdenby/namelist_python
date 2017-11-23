@@ -218,6 +218,17 @@ def test_dump_single_value():
 
     assert namelist.dump() == input_str
 
+
+def test_inline_comment():
+    input_str = """&CCFMSIM_SETUP
+  CCFMrad = 800. ! foobar
+/"""
+    namelist = Namelist(input_str)
+
+    expected_output = {'CCFMSIM_SETUP': { 'CCFMrad': 800., },}
+
+    assert namelist.groups == expected_output
+
 def test_dump_multigroup():
     input_str = """&CCFMSIM_SETUP
   CCFMrad = 800.
