@@ -86,6 +86,10 @@ class Namelist():
                 if line.endswith(','):
                     line = line[:-1]
 
+                # inline comments are allowed, but we remove them for now
+                if "!" in line:
+                    line = line.split("!")[0].strip()
+
                 k, v = line.split('=')
                 variable_name = k.strip()
                 variable_value = v.strip()
