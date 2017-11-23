@@ -1,4 +1,4 @@
 language: python
 
 script:
-        - python namelist_python/namelist.py
+        - python setup.py test
