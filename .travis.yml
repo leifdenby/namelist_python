@@ -1,4 +1,10 @@
 language: python
 
+matrix:
+  allow_failures:
+    - python: "2.7"
+    - python: "3.2"
+    - python: "nightly"
+
 script:
         - python setup.py test
