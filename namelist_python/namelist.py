@@ -69,19 +69,31 @@ class Namelist():
         group_cnt = {}
 
         for group_block in group_blocks:
-            block_lines = group_block.split('\n')
-            group_name = block_lines.pop(0).strip()
+            block_lines_raw = group_block.split('\n')
+            group_name = block_lines_raw.pop(0).strip()
 
             group = OrderedDict()
 
-
-            for line in block_lines:
+            block_lines = []
+            for line in block_lines_raw:
+                # cleanup string
                 line = line.strip()
                 if line == "":
                     continue
                 if line.startswith('!'):
                     continue
 
+                try:
+                    k, v = line.split('=')
+                    block_lines.append(line)
+                except ValueError:
+                    # no = in current line, try to append to previous line
+                    if block_lines[-1].endswith(','):
+                        block_lines[-1] += line
+                    else:
+                        raise
+
+            for line in block_lines:
                 # commas at the end of lines seem to be optional
                 if line.endswith(','):
                     line = line[:-1]
