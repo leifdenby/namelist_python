@@ -295,3 +295,14 @@ def test_dump_inline_array():
     namelist = Namelist(input_str)
 
     assert namelist.dump() == input_str
+
+def test_multiline_variable():
+    input_str = """&AADATA
+  AACOMPLEX = 3., 4., 3., 4.,
+              5., 6., 7., 7.
+/"""
+
+    namelist = Namelist(input_str)
+
+    assert namelist.groups == {'AADATA': {'AACOMPLEX':
+                                          [3., 4., 3., 4., 5., 6., 7., 7.]}}

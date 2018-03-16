@@ -50,7 +50,7 @@ Out[9]: 4.0
  - Tab-completion and variable assignment in interactive console
 
 ## Missing features
- - Currently can't handle variable definitions across multiple lines
+ - Currently can't handle complex variable definitions across multiple lines
  - Comments are not kept, and so won't exist in output.
 
 ## Contribute
