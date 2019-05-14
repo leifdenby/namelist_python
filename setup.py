@@ -14,7 +14,7 @@ class PyTest(TestCommand):
 setup(
   name = 'namelist_python',
   packages = ['namelist_python'],
-  version = '0.1.3',
+  version = '0.1.4',
   description = 'Fortran namelist file parser in Python',
   author = 'Leif Denby',
   author_email = 'leifdenby@gmail.com',
