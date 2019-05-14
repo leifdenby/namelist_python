@@ -227,7 +227,7 @@ class Namelist():
                     lines.append("  %s = %s" % (variable_name, self._format_value(variable_value)))
             lines.append("/")
 
-        return "\n".join(lines)
+        return "\n".join(lines) + "\n"
 
     def _format_value(self, value):
         is_python2 = sys.version_info < (3,0,0)
